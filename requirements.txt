@@ -1,0 +1,6 @@
+flask
+flask-sqlalchemy
+selenium>=4.15
+beautifulsoup4
+requests
+python-dateutil
