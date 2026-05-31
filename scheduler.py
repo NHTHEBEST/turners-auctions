@@ -35,7 +35,7 @@ def _tick():
         for auction in upcoming:
             if auction.id in active_auctions:
                 continue
-            if auction.start - OPEN_BEFORE <= now <= auction.start + timedelta(hours=3):
+            if auction.start - OPEN_BEFORE <= now <= auction.start + timedelta(hours=6):
                 logging.info(
                     "spawning worker for auction %s (%s) start=%s",
                     auction.id, auction.title, auction.start,

@@ -4,7 +4,8 @@ import threading
 import time
 
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import NoSuchElementException, WebDriverException
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 INJECT_JS = open(os.path.join(os.path.dirname(__file__), "log script.js")).read()
@@ -22,9 +23,9 @@ return typeof biddingsignalr !== 'undefined'
 
 # TODO: tune these selectors/regexes after observing a real ended auction
 _END_CHECK = """
-return !!document.querySelector('.auction-ended, .no-more-lots, .auction-complete')
+!!document.querySelector('.auction-ended, .no-more-lots, .auction-complete')
     || /auction\\s*(ended|complete|finished|closed)/i.test(
-           document.body.innerText.slice(0, 8000));
+           document.body.innerText.slice(0, 8000))
 """
 
 PROBE_INTERVAL = 15        # seconds between liveness probes
@@ -66,11 +67,29 @@ class AuctionWorker(threading.Thread):
         # from the https://www.turners.co.nz origin without being blocked.
         opts.add_argument("--disable-web-security")
         opts.add_argument("--allow-running-insecure-content")
+        # Required when running as root on a Linux server
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
         # Not headless — Turners may block headless agents and bidding JS can
         # need a visible window to fully initialise.
         self.driver = webdriver.Chrome(options=opts)
         logging.info("opened browser for auction %s → %s", self.auction.id, self.auction.url)
         self.driver.get(self.auction.url)
+        self._follow_watch_auction_link()
+
+    def _follow_watch_auction_link(self):
+        # The scraper URL (/Turners-Live/Turners-Live/?apid=…) is an intermediate
+        # page. The real bidding page (/Turners-Live/Turners-Live-Bidding/?catid=…)
+        # is linked via a "Watch Auction" button. Navigate there if present.
+        try:
+            link = self.driver.find_element(
+                By.CSS_SELECTOR, 'a.button[href*="Turners-Live-Bidding"]'
+            )
+            bidding_url = link.get_attribute("href")
+            logging.info("following Watch Auction link for %s → %s", self.auction.id, bidding_url)
+            self.driver.get(bidding_url)
+        except NoSuchElementException:
+            pass  # already on the bidding page
 
     def _wait_for_bidding_objects(self, timeout):
         logging.info("waiting for bidding objects on %s (up to %ss)", self.auction.id, timeout)

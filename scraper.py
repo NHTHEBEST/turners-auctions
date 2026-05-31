@@ -1,7 +1,7 @@
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -67,13 +67,26 @@ def fetch_upcoming_auctions() -> list[Auction]:
         date_str = _cell_text(date_cell)
         time_str = _cell_text(time_cell)
 
-        if not date_str or not time_str:
-            logging.warning("empty date/time for auction %s (%r %r), skipping", auction_id, date_str, time_str)
+        if not date_str:
+            logging.warning("empty date for auction %s, skipping", auction_id)
             continue
+
+        # "Today" / "Tomorrow" — replace with an unambiguous date string
+        now_nz = datetime.now(NZ_TZ)
+        dl = date_str.strip().lower()
+        if dl == "today":
+            date_str = now_nz.strftime("%d %b")
+        elif dl == "tomorrow":
+            date_str = (now_nz + timedelta(days=1)).strftime("%d %b")
+
+        # "-" means time not published yet; default to midnight so the auction
+        # is still discovered and the scheduler can open the browser on time.
+        if not time_str or time_str.strip() == "-":
+            time_str = "12:00am"
 
         try:
             start = dateparser.parse(
-                f"{date_str} {time_str} {datetime.now(NZ_TZ).year}",
+                f"{date_str} {time_str} {now_nz.year}",
                 dayfirst=True,
             ).replace(tzinfo=NZ_TZ)
         except Exception:
