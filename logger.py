@@ -94,7 +94,8 @@ def hello_world():
         for sock in socks:
             ph = json.loads(sock.json)[0]['Url']
             photo_tag = f'<td><img src="{ph}" height="100px"></img></td>'
-            sock_text += f'<tr>{photo_tag if photos else ""}<td>{sock.name}</td><td>${str(sock.price)}</td><td>{sock.price_time or ""}</td><td>{sock.lot_time or ""}</td><td>{sock.sold==1}</td><td>{sock.uuid}</td></tr>'
+            ref_link = f'<a href="https://www.turners.co.nz/Cars/Used-Cars-for-Sale/?searchfor={sock.uuid}" target="_blank">{sock.uuid}</a>'#https://www.turners.co.nz/Cars/Used-Cars-for-Sale/?searchfor={sock.uuid}
+            sock_text += f'<tr>{photo_tag if photos else ""}<td>{sock.name}</td><td>${str(sock.price)}</td><td>{sock.price_time or ""}</td><td>{sock.lot_time or ""}</td><td>{sock.sold==1}</td><td>{ref_link}</td></tr>'
         sock_text += '</table>'
         return sock_text
 
